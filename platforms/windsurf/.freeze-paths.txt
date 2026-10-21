@@ -1,0 +1,4 @@
+# Frozen paths protected by guard-freeze.sh and .githooks/pre-commit
+# One path prefix per line (relative to repository root)
+published/
+archive/

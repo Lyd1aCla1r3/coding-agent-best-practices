@@ -1,0 +1,7 @@
+# Banned prose phrases checked by scripts/lint_prose.py and the check-style hook.
+# Code blocks and inline code are skipped, so only prose is checked.
+# One case-insensitive phrase per line. Lines starting with # are ignored.
+# Uncomment or add entries to match the project writing conventions:
+# utilize
+# in order to
+# please note that

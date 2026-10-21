@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": "bash .cursor/hooks/guard-freeze.sh",
+        "timeout": 10,
+        "failClosed": true
+      },
+      {
+        "command": "bash .cursor/hooks/guard-destructive.sh",
+        "timeout": 10,
+        "failClosed": true
+      },
+      {
+        "command": "bash .cursor/hooks/guard-network.sh",
+        "timeout": 10,
+        "failClosed": true
+      },
+      {
+        "command": "bash .cursor/hooks/guard-secrets.sh",
+        "timeout": 10,
+        "failClosed": true
+      }
+    ],
+    "preToolUse": [
+      {
+        "command": "bash .cursor/hooks/guard-freeze.sh",
+        "matcher": "Write|Delete",
+        "timeout": 10,
+        "failClosed": true
+      },
+      {
+        "command": "bash .cursor/hooks/guard-secrets.sh",
+        "matcher": "Write",
+        "timeout": 10,
+        "failClosed": true
+      },
+      {
+        "command": "bash .cursor/hooks/check-style.sh",
+        "matcher": "Write",
+        "timeout": 15,
+        "failClosed": true
+      }
+    ]
+  }
+}

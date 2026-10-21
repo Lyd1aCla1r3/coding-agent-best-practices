@@ -1,0 +1,25 @@
+{
+  "model": "pro",
+  "agentMode": "plan",
+  "artifactReviewPolicy": "asks-for-review",
+  "enableTerminalSandbox": true,
+  "terminalSandboxAllowNetwork": false,
+  "permissions": {
+    "allow": [
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(python3 scripts/lint_prose.py*)",
+      "Bash(bash scripts/plan.sh*)"
+    ],
+    "ask": [
+      "Bash(git commit*)",
+      "Bash(git push*)"
+    ],
+    "deny": [
+      "Read(.env*)",
+      "Edit(published/**)",
+      "Edit(archive/**)",
+      "Bash(rm -rf*)"
+    ]
+  }
+}

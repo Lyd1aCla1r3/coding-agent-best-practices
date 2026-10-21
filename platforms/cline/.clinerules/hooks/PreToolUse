@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+# Deterministic Cline PreToolUse hook (.clinerules/hooks/PreToolUse).
+# Supports both documented Cline payload shapes:
+#   1. VS Code extension: {"workspaceRoots": [...], "preToolUse": {"toolName": "...", "parameters": {...}}}
+#   2. Cline CLI:         {"workspaceRoots": [...], "tool_call": {"name": "...", "input": {...}}}
+# Outputs JSON {"cancel": true, "errorMessage": "..."} to block or {"cancel": false} to allow.
+# Guard can also be invoked with --guard <freeze|destructive|network|secrets|style> for isolated testing.
+# The style guard is config-driven: .style-denylist.txt and .style-phrases.txt.
+
+set -euo pipefail
+
+GUARD_FILTER="${2:-all}"
+
+exec 3<&0
+python3 - "$GUARD_FILTER" <<'PY'
+import json
+import os
+import re
+import sys
+
+guard_filter = sys.argv[1] if len(sys.argv) > 1 else "all"
+with os.fdopen(3, "r", encoding="utf-8") as f:
+    data = json.load(f)
+
+# Normalize across VS Code extension (preToolUse) and CLI (tool_call) schemas
+pre = data.get("preToolUse") or {}
+cli = data.get("tool_call") or {}
+
+tool_name = pre.get("toolName") or cli.get("name") or ""
+params = pre.get("parameters") or cli.get("input") or {}
+
+def unpack(val):
+    if isinstance(val, str):
+        stripped = val.strip()
+        if (stripped.startswith("{") and stripped.endswith("}")) or (stripped.startswith("[") and stripped.endswith("]")):
+            try:
+                return json.loads(stripped)
+            except Exception:
+                return val
+    return val
+
+unpacked_params = {k: unpack(v) for k, v in params.items()} if isinstance(params, dict) else {}
+
+file_candidates = []
+cmd_candidates = []
+content_candidates = []
+
+for key, val in unpacked_params.items():
+    if key in ("path", "file_path", "target_file") and isinstance(val, str):
+        file_candidates.append(val)
+    elif key == "paths" and isinstance(val, list):
+        file_candidates.extend(str(x) for x in val)
+    elif key in ("command", "cmd") and isinstance(val, str):
+        cmd_candidates.append(val)
+    elif key == "commands" and isinstance(val, list):
+        cmd_candidates.extend(str(x) for x in val)
+    elif key in ("content", "diff", "patch", "new_string", "text") and isinstance(val, str):
+        content_candidates.append(val)
+
+target_str = " ".join(file_candidates + cmd_candidates)
+cmd_str = " ".join(cmd_candidates)
+content_str = " ".join(content_candidates + cmd_candidates)
+
+def deny(msg: str) -> None:
+    print(json.dumps({"cancel": True, "errorMessage": msg}))
+    sys.exit(0)
+
+# 1. Freeze guard
+if guard_filter in ("all", "freeze"):
+    if target_str and re.search(r"(^|/)(published|archive)(/|$)", target_str):
+        deny("BLOCKED [guard-freeze]: target touches a frozen path (published/ or archive/).")
+
+# 2. Destructive command guard
+if guard_filter in ("all", "destructive"):
+    destructive_pat = r"(rm\s+-[a-zA-Z]*r[a-zA-Z]*f|rm\s+-[a-zA-Z]*f[a-zA-Z]*r|git\s+reset\s+--hard|git\s+push\s+(--force|-f)|git\s+clean\s+-[a-zA-Z]*f|DROP\s+TABLE)"
+    if cmd_str and re.search(destructive_pat, cmd_str):
+        deny("BLOCKED [guard-destructive]: destructive shell command detected.")
+
+# 3. Network safety guard
+if guard_filter in ("all", "network"):
+    network_pat = r"((curl|wget)\s+.*\|\s*(ba)?sh|nc\s+-l|curl\s+.*(-d|--data|--upload-file)\s*@?.*(\.env|id_rsa|credentials))"
+    if cmd_str and re.search(network_pat, cmd_str):
+        deny("BLOCKED [guard-network]: untrusted network execution or exfiltration pattern detected.")
+
+# 4. Secrets guard
+if guard_filter in ("all", "secrets"):
+    secret_pat = r"(sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{36}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----)"
+    if content_str and re.search(secret_pat, content_str):
+        deny("BLOCKED [guard-secrets]: payload contains a secret token or private key header.")
+
+# 5. Prose hygiene guard (config-driven: .style-denylist.txt and .style-phrases.txt)
+def find_config(name):
+    directory = os.path.abspath(os.getcwd())
+    while True:
+        candidate = os.path.join(directory, name)
+        if os.path.isfile(candidate):
+            return candidate
+        parent = os.path.dirname(directory)
+        if os.path.isdir(os.path.join(directory, ".git")) or parent == directory:
+            return None
+        directory = parent
+
+def load_terms(name):
+    path = find_config(name)
+    if not path:
+        return []
+    with open(path, encoding="utf-8") as handle:
+        return [ln.strip() for ln in handle if ln.strip() and not ln.strip().startswith("#")]
+
+def has_term(term, text):
+    pattern = r"(?<![\w-])" + re.escape(term) + r"(?![\w-])"
+    return re.search(pattern, text, re.IGNORECASE) is not None
+
+if guard_filter in ("all", "style"):
+    is_md = any(p.endswith((".md", ".mdx")) for p in file_candidates)
+    prose_payload = " ".join(content_candidates)
+    if is_md and prose_payload:
+        violations = []
+        if re.search(r"(?:/Users/[A-Za-z0-9._-]+|/home/[A-Za-z0-9._-]+)", prose_payload):
+            violations.append("local home directory path")
+        for term in load_terms(".style-denylist.txt"):
+            if has_term(term, prose_payload):
+                violations.append("restricted term '" + term + "'")
+        prose_only = re.sub(r"```[\s\S]*?```", " ", prose_payload)
+        prose_only = re.sub(r"`[^`\n]+`", " ", prose_only)
+        for phrase in load_terms(".style-phrases.txt"):
+            if has_term(phrase, prose_only):
+                violations.append("banned phrase '" + phrase + "'")
+        if violations:
+            deny("BLOCKED [check-style]: " + ", ".join(violations))
+
+print(json.dumps({"cancel": False}))
+sys.exit(0)
+PY

@@ -1,0 +1,83 @@
+{
+  "sandbox": {
+    "enabled": true
+  },
+  "permission": {
+    "read": "allow",
+    "edit": "ask",
+    "executeR": "ask",
+    "bash": {
+      "git status*": "allow",
+      "git diff*": "allow",
+      "python3 scripts/lint_prose.py*": "allow",
+      "bash scripts/plan.sh*": "allow",
+      "rm -rf *": "deny",
+      "git push --force*": "deny",
+      "*": "ask"
+    },
+    "task": {
+      "explore": "allow",
+      "general": "ask"
+    }
+  },
+  "modelTiers": {
+    "low": [
+      "haiku"
+    ],
+    "medium": [
+      "sonnet"
+    ],
+    "high": [
+      "opus"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .posit/assistant/hooks/guard-freeze.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash .posit/assistant/hooks/guard-destructive.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash .posit/assistant/hooks/guard-network.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash .posit/assistant/hooks/guard-secrets.sh",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .posit/assistant/hooks/guard-freeze.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash .posit/assistant/hooks/guard-secrets.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash .posit/assistant/hooks/check-style.sh",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

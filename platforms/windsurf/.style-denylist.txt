@@ -1,0 +1,5 @@
+# Restricted terms checked everywhere (prose and code) by scripts/lint_prose.py
+# and the check-style hook. Use it for internal codenames, client or employer
+# names, and other terms that must never reach a commit.
+# One case-insensitive term per line. Lines starting with # are ignored.
+restricted-org-example

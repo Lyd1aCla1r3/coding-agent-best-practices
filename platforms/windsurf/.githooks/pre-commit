@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Universal Git pre-commit backstop (works with every agent tool).
+# Activate once per clone with: git config core.hooksPath .githooks
+# Blocks commits that:
+#   1. Modify frozen paths listed in .freeze-paths.txt (default: published/, archive/)
+#   2. Introduce plaintext credentials or private key headers
+#   3. Fail scripts/lint_prose.py (generic, config-driven) on staged markdown files
+
+set -euo pipefail
+
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMRD)
+if [ -z "$STAGED_FILES" ]; then
+  exit 0
+fi
+
+# 1. Freeze guard against staged paths
+FREEZE_REGEX="^(published|archive)/"
+if [ -f ".freeze-paths.txt" ]; then
+  CUSTOM_PAT=$(
+    grep -vE "^(#|[[:space:]]*$)" .freeze-paths.txt | paste -sd "|" - || true
+  )
+  if [ -n "$CUSTOM_PAT" ]; then
+    FREEZE_REGEX="^($CUSTOM_PAT)"
+  fi
+fi
+
+if printf '%s\n' "$STAGED_FILES" |
+   grep -qE "$FREEZE_REGEX"; then
+  echo "BLOCKED [pre-commit]: staged changes touch a frozen path matching $FREEZE_REGEX" >&2
+  exit 1
+fi
+
+# 2. Secret scan against staged additions
+ADDED_LINES=$(git diff --cached -U0 | grep -E "^\+[^+]" || true)
+SECRET_PAT="(sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{36}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----)"
+if printf '%s\n' "$ADDED_LINES" |
+   grep -qE "$SECRET_PAT"; then
+  echo "BLOCKED [pre-commit]: staged diff contains a high-confidence secret or private key." >&2
+  exit 1
+fi
+
+# 3. Deterministic prose & hygiene linter on staged markdown files
+MD_FILES=$(
+  git diff --cached --name-only --diff-filter=ACMR |
+  grep -E "\.(md|mdx)$" || true
+)
+if [ -n "$MD_FILES" ] && [ -f "scripts/lint_prose.py" ]; then
+  # Pass staged markdown files to lint_prose.py
+  printf '%s\n' "$MD_FILES" | xargs python3 scripts/lint_prose.py
+fi
+
+exit 0

@@ -1,0 +1,36 @@
+{
+  "hooks": {
+    "pre_run_command": [
+      {
+        "command": "bash .devin/hooks/guard-freeze.sh",
+        "show_output": true
+      },
+      {
+        "command": "bash .devin/hooks/guard-destructive.sh",
+        "show_output": true
+      },
+      {
+        "command": "bash .devin/hooks/guard-network.sh",
+        "show_output": true
+      },
+      {
+        "command": "bash .devin/hooks/guard-secrets.sh",
+        "show_output": true
+      }
+    ],
+    "pre_write_code": [
+      {
+        "command": "bash .devin/hooks/guard-freeze.sh",
+        "show_output": true
+      },
+      {
+        "command": "bash .devin/hooks/guard-secrets.sh",
+        "show_output": true
+      },
+      {
+        "command": "bash .devin/hooks/check-style.sh",
+        "show_output": true
+      }
+    ]
+  }
+}

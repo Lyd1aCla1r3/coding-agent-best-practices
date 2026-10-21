@@ -1,0 +1,10 @@
+{
+  "agent": {
+    "model": "opus",
+    "subagent_model": "sonnet",
+    "thinking": true
+  },
+  "sandbox": {
+    "enabled": true
+  }
+}

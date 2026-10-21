@@ -1,0 +1,59 @@
+{
+  "shell-safety-guards": {
+    "description": "Block frozen-path writes, destructive commands, untrusted network pipes, and secrets in shell commands",
+    "enabled": true,
+    "PreToolUse": [
+      {
+        "matcher": "run_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./hooks/guard-freeze.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "./hooks/guard-destructive.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "./hooks/guard-network.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "./hooks/guard-secrets.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  },
+  "file-edit-guards": {
+    "description": "Enforce frozen-path protection, secret scanning, and prose style rules on file writes and edits",
+    "enabled": true,
+    "PreToolUse": [
+      {
+        "matcher": "write_to_file|replace_file_content|multi_replace_file_content",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./hooks/guard-freeze.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "./hooks/guard-secrets.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "./hooks/check-style.sh",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,6 @@
+# Sensitive files blocked from Cline context
+.env
+.env.*
+*.pem
+*.key
+id_rsa

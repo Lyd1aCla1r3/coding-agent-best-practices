@@ -1,0 +1,49 @@
+{
+  "PreToolUse": [
+    {
+      "matcher": "exec",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash .devin/hooks/guard-freeze.sh",
+          "timeout": 10
+        },
+        {
+          "type": "command",
+          "command": "bash .devin/hooks/guard-destructive.sh",
+          "timeout": 10
+        },
+        {
+          "type": "command",
+          "command": "bash .devin/hooks/guard-network.sh",
+          "timeout": 10
+        },
+        {
+          "type": "command",
+          "command": "bash .devin/hooks/guard-secrets.sh",
+          "timeout": 10
+        }
+      ]
+    },
+    {
+      "matcher": "write|edit|apply_patch",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash .devin/hooks/guard-freeze.sh",
+          "timeout": 10
+        },
+        {
+          "type": "command",
+          "command": "bash .devin/hooks/guard-secrets.sh",
+          "timeout": 10
+        },
+        {
+          "type": "command",
+          "command": "bash .devin/hooks/check-style.sh",
+          "timeout": 15
+        }
+      ]
+    }
+  ]
+}

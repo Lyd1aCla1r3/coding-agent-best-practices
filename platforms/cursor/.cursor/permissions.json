@@ -1,0 +1,10 @@
+{
+  "autoRun": false,
+  "terminalAllowlist": [
+    "git status",
+    "git diff",
+    "python3 scripts/lint_prose.py",
+    "bash scripts/plan.sh"
+  ],
+  "mcpAllowlist": []
+}
